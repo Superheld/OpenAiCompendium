@@ -1,380 +1,893 @@
-# Ranking Metrics
+# Ranking Metrics: Wie gut findet dein Retrieval System relevante Dokumente?
 
-**Warum wichtig?** Ranking bestimmt welche Chunks ans LLM gehen - schlechtes Ranking = schlechte Antworten.
+> **💡 Wichtig:** Diese Metriken sind **unabhängig** von der Retrieval-Methode!
+>
+> Sie funktionieren gleich, egal ob du nutzt:
+> - Dense Retrieval (Embedding-basiert: Sentence-Transformers, OpenAI)
+> - Sparse Retrieval (BM25, TF-IDF)
+> - Hybrid Retrieval (Kombination)
+>
+> **Ranking-Metriken** messen nur: "Sind die Top-K Ergebnisse relevant?" - unabhängig davon WIE du sie gefunden hast.
+>
+> → Für Retrieval-Methoden siehe: [04-advanced/retrieval-methods/](../../../04-advanced/02-retrieval-optimization.md)
+> → Für Embedding-Models siehe: [03-core/embeddings/](../../02-embeddings/)
 
----
+## ❓ Das Problem (Problem-First)
 
-## Precision@K
+**Ohne gute Ranking-Metriken geht folgendes schief:**
 
-**Definition:** Von den Top-K Ergebnissen, wie viele sind relevant?
+1. **Du merkst nicht, dass relevante Docs auf Platz 20 landen** - User sehen nur Top-5, aber wichtigste Info ist weiter unten
+   - *Beispiel:* User fragt "Wie kündige ich meinen Vertrag?" → Kündigungsformular ist auf Position 15, User findet es nicht
 
-**Formel:**
+2. **Du kannst Systeme nicht vergleichen** - Ist Retrieval-System A besser als System B? Ohne Metriken: Bauchgefühl
+   - *Beispiel:* Zwei verschiedene Ansätze testen, aber keine quantitative Basis für Entscheidung
+
+3. **Du optimierst am falschen Ende** - System liefert 100 Dokumente, aber nur Top-3 sind relevant → Hoher Recall täuscht über schlechte User Experience hinweg
+   - *Beispiel:* 80% Recall klingt gut, aber Precision@5 ist nur 20% → User sieht 4 von 5 irrelevanten Docs
+
+**Die zentrale Frage:**
+Von allen zurückgegebenen Dokumenten - wie viele der *ersten K* Dokumente sind relevant? Und wo steht das erste relevante Dokument?
+
+**Beispiel-Szenario:**
 ```
-Precision@K = (Anzahl relevante Docs in Top-K) / K
-Range: [0, 1], höher = besser
+Query: "Python async programming tutorial"
+Deine Datenbank: 1000 Dokumente (davon 20 relevant zu async Python)
+
+System liefert Top-10:
+1. ✅ "Asyncio Tutorial"
+2. ❌ "Java Threading"
+3. ❌ "JavaScript Promises"
+4. ✅ "Python Async/Await Guide"
+5. ❌ "C++ Multithreading"
+6. ✅ "Python Asyncio Best Practices"
+7-10. ❌ Alle irrelevant
+
+→ Wie bewertest du diese Retrieval-Performance quantitativ?
 ```
 
-**Code:**
-```python
-# python
-def precision_at_k(retrieved, relevant, k):
-    top_k = retrieved[:k]
-    relevant_in_top_k = len(set(top_k) & set(relevant))
-    return relevant_in_top_k / k
+## 🎯 Lernziele
 
-# Beispiel
-retrieved = [1, 5, 3, 8, 2, 9, 7, 4, 6, 10]
-relevant = {1, 2, 3}
+Nach diesem Kapitel kannst du:
+- [ ] Verstehe Precision@K, Recall@K, MRR, NDCG **mathematisch und intuitiv**
+- [ ] Erkenne wann welche Metrik sinnvoll ist (Binary vs. Graded Relevance)
+- [ ] Implementiere alle Standard-Metriken from scratch in Python
+- [ ] Interpretiere Metrik-Werte richtig (was ist ein "guter" MRR@10?)
+- [ ] Wähle die richtige Metrik für deinen Use-Case (E-Commerce vs. FAQ-Bot)
+- [ ] Erkenne häufige Fehlinterpretationen (hoher Recall ≠ gutes System)
 
-print(precision_at_k(retrieved, relevant, k=5))  # 3/5 = 0.6
-print(precision_at_k(retrieved, relevant, k=3))  # 2/3 = 0.67
+## 🧠 Intuition zuerst
+
+### Alltagsanalogie: Die Bibliothek
+
+**Stell dir vor, du suchst in einer Bibliothek:**
+
+Du fragst den Bibliothekar nach Büchern über "Machine Learning".
+Er bringt dir 10 Bücher.
+
+**Precision@10**: Von diesen 10 Büchern, wie viele sind wirklich über ML?
+- Er bringt 7 ML-Bücher + 3 über Statistik → Precision@10 = 7/10 = 70%
+- *Intuitiv:* "Wie viel Müll ist dabei?"
+
+**Recall@10**: Die Bibliothek hat 50 ML-Bücher. Von denen hat er dir 7 gebracht.
+- Recall@10 = 7/50 = 14%
+- *Intuitiv:* "Wie viel habe ich verpasst?"
+
+**Mean Reciprocal Rank (MRR)**: Wo lag das erste relevante Buch?
+- Erstes ML-Buch war auf Position 3 → Reciprocal Rank = 1/3 = 0.33
+- *Intuitiv:* "Wie lange musste ich suchen?"
+
+**NDCG**: Manche Bücher sind "perfekt", andere "okay", andere "irrelevant"
+- Perfekte Sortierung: Beste Bücher zuerst → NDCG = 1.0
+- Deine Sortierung: Manche gute Bücher erst später → NDCG = 0.75
+- *Intuitiv:* "Wie gut ist die Reihenfolge?"
+
+### Visualisierung: Retrieval Results
+
+```
+Query: "Python async"
+System liefert 10 Docs, du hast Ground Truth (welche sind relevant):
+
+Position │ Relevanz │ Precision@K │ Recall@K (von 5 relevanten)
+─────────┼──────────┼─────────────┼──────────────────────────────
+   1     │    ✅    │   1/1=100%  │   1/5=20%
+   2     │    ❌    │   1/2=50%   │   1/5=20%
+   3     │    ❌    │   1/3=33%   │   1/5=20%
+   4     │    ✅    │   2/4=50%   │   2/5=40%
+   5     │    ❌    │   2/5=40%   │   2/5=40%  ← Precision@5
+   6     │    ✅    │   3/6=50%   │   3/5=60%
+   7     │    ❌    │   3/7=43%   │   3/5=60%
+   8     │    ❌    │   3/8=38%   │   3/5=60%
+   9     │    ❌    │   3/9=33%   │   3/5=60%
+  10     │    ❌    │   3/10=30%  │   3/5=60%  ← Precision@10
+```
+
+**Beobachtungen:**
+- Precision sinkt mit mehr Docs (mehr Müll kommt dazu)
+- Recall steigt mit mehr Docs (mehr relevante gefunden)
+- Trade-off: Mehr Docs → Mehr Recall, aber weniger Precision
+
+### Die Brücke zur Mathematik
+
+Jetzt machen wir das präzise mit Formeln - aber die Intuition bleibt gleich:
+- **Precision** = "Wie viel von dem was ich bekomme ist gut?"
+- **Recall** = "Wie viel von dem was gut ist bekomme ich?"
+- **Ranking-Qualität** = "Sind die guten Sachen weit oben?"
+
+## 🧮 Das Konzept verstehen
+
+### 1. Precision@K und Recall@K
+
+**Mathematische Definition:**
+
+$$
+\text{Precision@K} = \frac{|\text{relevant\_docs} \cap \text{retrieved\_docs@K}|}{K}
+$$
+
+$$
+\text{Recall@K} = \frac{|\text{relevant\_docs} \cap \text{retrieved\_docs@K}|}{|\text{relevant\_docs}|}
+$$
+
+**Intuition hinter den Formeln:**
+
+- **Numerator (Zähler)** ist bei beiden gleich: Anzahl relevanter Docs in Top-K
+- **Denominator (Nenner)** unterscheidet:
+  - Precision: Geteilt durch K (alle zurückgegebenen)
+  - Recall: Geteilt durch Gesamtzahl relevanter Docs
+
+**Warum diese Definitionen?**
+
+- **Precision@K**: User-Perspektive → "Von dem was ich sehe (K Docs), wie viel ist brauchbar?"
+  - Wichtig wenn User nur Top-K sieht (z.B. Top-5 in Web-Search)
+
+- **Recall@K**: System-Perspektive → "Von allem was relevant ist, wie viel habe ich gefunden?"
+  - Wichtig bei E-Discovery (Legal) wo du ALLE relevanten Docs finden musst
+
+**Beispiel-Rechnung:**
+
+```
+Query: "Python async"
+Ground Truth: 5 relevante Docs in der Datenbank: {Doc_A, Doc_B, Doc_C, Doc_D, Doc_E}
+
+System retrieves Top-10: [Doc_A, Doc_X, Doc_Y, Doc_B, Doc_Z, Doc_C, ...]
+
+Relevant in Top-5: {Doc_A, Doc_B} → 2 relevante
+Relevant in Top-10: {Doc_A, Doc_B, Doc_C} → 3 relevante
+
+Precision@5  = 2/5 = 0.40 (40%)
+Recall@5     = 2/5 = 0.40 (40% aller relevanten gefunden)
+
+Precision@10 = 3/10 = 0.30 (30%)
+Recall@10    = 3/5 = 0.60 (60% aller relevanten gefunden)
+```
+
+**Trade-off sichtbar:**
+- Mehr Docs (K↑) → Precision↓, Recall↑
+- Weniger Docs (K↓) → Precision↑, Recall↓
+
+### 2. Mean Reciprocal Rank (MRR)
+
+**Mathematische Definition:**
+
+$$
+\text{MRR} = \frac{1}{|Q|} \sum_{i=1}^{|Q|} \frac{1}{\text{rank}_i}
+$$
+
+Wobei $\text{rank}_i$ die Position des **ersten** relevanten Dokuments für Query $i$ ist.
+
+**Intuition hinter der Formel:**
+
+- **Reciprocal Rank (1/rank)**: Je früher das erste relevante Doc, desto höher der Score
+  - Position 1: 1/1 = 1.0
+  - Position 2: 1/2 = 0.5
+  - Position 3: 1/3 = 0.33
+  - Position 10: 1/10 = 0.1
+
+- **Mean über Queries**: Durchschnitt über alle Test-Queries
+
+**Warum dieser Ansatz?**
+
+MRR fokussiert auf "**Time to first relevant result**" - wichtig für:
+- Web-Search (User klickt erstes gutes Ergebnis)
+- FAQ-Bots (User braucht EINE gute Antwort)
+- Navigational Queries ("Facebook Login" → User will eine spezifische Seite)
+
+**Beispiel-Rechnung:**
+
+```
+Test-Set: 3 Queries
+
+Query 1: "Python async"
+Retrieved: [❌, ❌, ✅, ❌, ❌, ...]
+First relevant: Position 3 → RR₁ = 1/3 = 0.33
+
+Query 2: "Docker networking"
+Retrieved: [✅, ❌, ✅, ...]
+First relevant: Position 1 → RR₂ = 1/1 = 1.0
+
+Query 3: "Redis caching"
+Retrieved: [❌, ✅, ❌, ...]
+First relevant: Position 2 → RR₃ = 1/2 = 0.5
+
+MRR = (0.33 + 1.0 + 0.5) / 3 = 1.83 / 3 = 0.61
 ```
 
 **Interpretation:**
-- `Precision@3 = 1.0`: Alle Top-3 sind relevant (perfekt!)
-- `Precision@5 = 0.6`: 3 von 5 sind relevant (okay)
-- `Precision@10 = 0.3`: Nur 3 von 10 relevant (schlecht)
+- MRR = 1.0: Perfekt! Immer erstes Ergebnis relevant
+- MRR = 0.5: Im Schnitt ist zweites Ergebnis relevant
+- MRR = 0.1: Im Schnitt Position 10 (schlecht!)
 
-**Wann nutzen?**
-- ✅ Wenn nur Top-K ans LLM gesendet wird
-- ✅ User sieht nur erste Ergebnisse
-- ✅ Token-Budget limitiert (nur Top-3 nutzbar)
-- ❌ Ignoriert Reihenfolge innerhalb Top-K
+### 3. Normalized Discounted Cumulative Gain (NDCG@K)
 
-**Target:**
-- Precision@3: > 0.80
-- Precision@5: > 0.70
-- Precision@10: > 0.60
+**Problem mit Precision/Recall:** Binary Relevanz (relevant ✅ vs. irrelevant ❌)
+**Realität:** Graded Relevanz (perfekt=3, gut=2, okay=1, irrelevant=0)
 
----
+**Schritt-für-Schritt Ableitung:**
 
-## Recall@K
+**Step 1: Cumulative Gain (CG)**
 
-**Definition:** Von allen relevanten Docs, wie viele wurden in Top-K gefunden?
+$$
+\text{CG@K} = \sum_{i=1}^{K} \text{rel}_i
+$$
 
-**Formel:**
+Einfach die Summe aller Relevanz-Scores.
+
+**Problem:** Position egal! [3,2,1] hat gleichen CG wie [1,2,3]
+
+**Step 2: Discounted Cumulative Gain (DCG)**
+
+$$
+\text{DCG@K} = \sum_{i=1}^{K} \frac{\text{rel}_i}{\log_2(i+1)}
+$$
+
+**Discount-Faktor:** $\frac{1}{\log_2(i+1)}$ bestraft späte Positionen
+
+| Position | Discount | Interpretation |
+|----------|----------|----------------|
+| 1 | 1/log₂(2) = 1.0 | Volle Wertung |
+| 2 | 1/log₂(3) = 0.63 | 63% Wert |
+| 3 | 1/log₂(4) = 0.5 | 50% Wert |
+| 5 | 1/log₂(6) = 0.39 | 39% Wert |
+| 10 | 1/log₂(11) = 0.29 | 29% Wert |
+
+**Step 3: Normalized DCG (NDCG)**
+
+$$
+\text{NDCG@K} = \frac{\text{DCG@K}}{\text{IDCG@K}}
+$$
+
+Wobei **IDCG** (Ideal DCG) = DCG der *perfekten* Sortierung (beste Docs zuerst)
+
+**Warum Normalisierung?**
+- Ermöglicht Vergleich zwischen Queries (verschiedene Anzahl relevanter Docs)
+- Range: [0, 1], wobei 1.0 = perfekte Sortierung
+
+**Beispiel-Rechnung:**
+
 ```
-Recall@K = (Anzahl gefundene relevante Docs) / (Total relevante Docs)
-Range: [0, 1], höher = besser
-```
+Query: "Python async tutorial"
 
-**Code:**
-```python
-# python
-def recall_at_k(retrieved, relevant, k):
-    top_k = retrieved[:k]
-    relevant_in_top_k = len(set(top_k) & set(relevant))
-    return relevant_in_top_k / len(relevant)
+Ground Truth Relevanz-Scores:
+- Doc_A: 3 (perfekt)
+- Doc_B: 2 (gut)
+- Doc_C: 2 (gut)
+- Doc_D: 1 (okay)
+- Rest: 0 (irrelevant)
 
-# Beispiel
-retrieved = [1, 5, 3, 8, 2]
-relevant = {1, 2, 3}
-print(recall_at_k(retrieved, relevant, k=5))  # 3/3 = 1.0 (alle gefunden!)
+System Retrieval (Top-5):
+[Doc_B(2), Doc_X(0), Doc_A(3), Doc_C(2), Doc_D(1)]
+
+DCG@5:
+= 2/log₂(2) + 0/log₂(3) + 3/log₂(4) + 2/log₂(5) + 1/log₂(6)
+= 2/1 + 0/1.58 + 3/2 + 2/2.32 + 1/2.58
+= 2.0 + 0 + 1.5 + 0.86 + 0.39
+= 4.75
+
+Ideal Retrieval (beste Reihenfolge):
+[Doc_A(3), Doc_B(2), Doc_C(2), Doc_D(1), Doc_X(0)]
+
+IDCG@5:
+= 3/log₂(2) + 2/log₂(3) + 2/log₂(4) + 1/log₂(5) + 0/log₂(6)
+= 3/1 + 2/1.58 + 2/2 + 1/2.32 + 0
+= 3.0 + 1.27 + 1.0 + 0.43 + 0
+= 5.70
+
+NDCG@5 = DCG/IDCG = 4.75/5.70 = 0.833
 ```
 
 **Interpretation:**
-- `Recall@10 = 1.0`: Alle relevanten Docs in Top-10 (perfekt!)
-- `Recall@5 = 0.6`: Nur 60% der relevanten Docs gefunden
-- `Recall@3 = 0.33`: Nur 1 von 3 relevanten Docs in Top-3
+- NDCG@5 = 0.833 → 83% der idealen Sortierung erreicht
+- Gut, aber nicht perfekt (Doc_A sollte auf Position 1 sein, nicht 3)
 
-**Wann nutzen?**
-- ✅ Wichtig bei wenigen relevanten Docs (keine verpassen!)
-- ✅ Multi-hop Reasoning (mehrere Chunks nötig)
-- ✅ Retrieval-System Grundsatz-Evaluation
-- ❌ Nicht relevant wenn nur Top-1 zählt
+## ⚠️ Häufige Missverständnisse (Misconception Debugging)
 
-**Target:**
-- Recall@5: > 0.70
-- Recall@10: > 0.90
-- Recall@20: > 0.95
+### ❌ Missverständnis 1: "Hoher Recall bedeutet gutes System"
 
----
-
-## F1-Score@K
-
-**Definition:** Harmonisches Mittel aus Precision und Recall
-
-**Formel:**
-```
-F1@K = 2 * (Precision@K * Recall@K) / (Precision@K + Recall@K)
-Range: [0, 1], höher = besser
-```
-
-**Code:**
+**Warum das falsch ist:**
 ```python
-# python
-def f1_at_k(retrieved, relevant, k):
-    p = precision_at_k(retrieved, relevant, k)
-    r = recall_at_k(retrieved, relevant, k)
-    if p + r == 0:
-        return 0.0
-    return 2 * (p * r) / (p + r)
+# "Dummes" System: Gib ALLE Dokumente zurück
+retrieved = all_docs  # 10,000 Dokumente
+relevant = 50  # Davon 50 relevant
+
+Recall = 50/50 = 100%  # Perfekt!
+Precision = 50/10,000 = 0.5%  # Katastrophal!
 ```
 
-**Interpretation:**
-- Balanciert Precision und Recall
-- Niedriger wenn eine Metrik sehr schlecht ist
-- Höher wenn beide Metriken gut sind
+User bekommt 10,000 Docs und muss selbst suchen → Nutzlos trotz 100% Recall
 
-**Wann nutzen?**
-- ✅ Trade-off zwischen Precision und Recall wichtig
-- ✅ Vergleich verschiedener Systeme (eine Metrik statt zwei)
-- ❌ Wenn Precision >> Recall wichtig (z.B. nur Top-3 zählt)
+**✓ Richtig ist:**
+- Recall alleine sagt nichts über User Experience
+- Wichtig: **Precision@K** für K das der User sieht (meist K=5 oder K=10)
 
-**Target:** F1@5 > 0.70
+**Merksatz:** "Recall ohne Precision ist wie eine Bibliothek die dir alle Bücher bringt"
 
----
+### ❌ Missverständnis 2: "MRR ist besser als NDCG"
 
-## Mean Reciprocal Rank (MRR)
+**Warum das falsch ist:** Kommt auf den Use-Case an!
 
-**Definition:** Durchschnittliche Position des ERSTEN relevanten Ergebnisses
+**MRR ist besser für:**
+- Navigational Queries ("Facebook login" → User will EINE Seite)
+- FAQ-Bots (User braucht EINE Antwort)
+- "Quick Answer" Szenarios
 
-**Formel:**
-```
-RR = 1 / rank(first_relevant_doc)
-MRR = average(RR) über alle Queries
-Range: [0, 1], höher = besser
-```
+**NDCG ist besser für:**
+- Informational Queries ("Machine Learning tutorials" → User will mehrere gute Ergebnisse)
+- E-Commerce Search (User will Auswahl von Produkten sehen)
+- Research (mehrere relevante Papers)
 
-**Code:**
+**✓ Richtig ist:**
+- MRR: "First relevant result" Use-Cases
+- NDCG: "Multiple relevant results with varying quality" Use-Cases
+- Oft: **Beide** messen und interpretieren!
+
+**Beispiel:**
 ```python
-# python
-def reciprocal_rank(retrieved, relevant):
+# Query: "Best Python IDE"
+# User will mehrere Optionen vergleichen → NDCG besser
+
+# Query: "Python official website"
+# User will genau eine URL → MRR besser
+```
+
+### ❌ Missverständnis 3: "Precision@5 = 80% ist gut genug"
+
+**Warum das falsch ist:** Context matters!
+
+**FAQ-Bot:**
+- Precision@5 = 80% → User sieht 4 richtige + 1 falsche Antwort
+- **Risiko:** Falsche Antwort könnte gewählt werden → Kunde verärgert
+- **Target:** Precision@5 > 95%
+
+**E-Commerce Search:**
+- Precision@5 = 80% → 4 von 5 Produkten passen
+- **Akzeptabel:** User kann falsche Produkte ignorieren
+- **Target:** Precision@5 > 70% (niedrigere Anforderung)
+
+**Medical/Legal:**
+- Precision@5 = 80% → NICHT akzeptabel
+- **Risiko:** Falsche Information könnte schwerwiegende Folgen haben
+- **Target:** Precision@5 > 98%
+
+**✓ Richtig ist:**
+- Kein universeller "guter Wert"
+- Definiere Targets basierend auf:
+  - Konsequenz von False Positives
+  - User Tolerance für irrelevante Ergebnisse
+  - Business Requirements
+
+**Merksatz:** "Dein Precision-Target hängt davon ab, wie teuer ein Fehler ist"
+
+## 🔬 Hands-On: Retrieval Metrics implementieren
+
+### Setup & Beispiel-Daten
+
+```python
+from typing import List, Set, Dict
+import numpy as np
+
+# Beispiel Ground Truth: Welche Docs sind für welche Query relevant?
+ground_truth = {
+    "python async": {1, 4, 6, 12, 15},  # Doc IDs
+    "docker networking": {2, 7, 8},
+    "redis caching": {3, 9, 11, 14}
+}
+
+# Beispiel Retrieval Results (Doc IDs in Ranking-Reihenfolge)
+retrieval_results = {
+    "python async": [1, 23, 45, 4, 67, 6, 89, 12],  # Top-8
+    "docker networking": [2, 7, 34, 56, 8],  # Top-5
+    "redis caching": [78, 3, 9, 45, 11]  # Top-5
+}
+```
+
+### 1. Precision@K Implementation
+
+```python
+def precision_at_k(retrieved: List[int], relevant: Set[int], k: int) -> float:
     """
+    Berechnet Precision@K
+
     Args:
-        retrieved: List[int] - Retrieved doc IDs (ranked)
-        relevant: Set[int] - Relevant doc IDs
+        retrieved: Liste von Doc IDs in Ranking-Reihenfolge
+        relevant: Set von relevanten Doc IDs (Ground Truth)
+        k: Anzahl Top-Docs zu evaluieren
+
     Returns:
-        float - Reciprocal rank (0 if none found)
+        Precision@K (0.0 bis 1.0)
     """
-    for i, doc_id in enumerate(retrieved, start=1):
-        if doc_id in relevant:
-            return 1.0 / i
-    return 0.0
+    # Nur Top-K betrachten
+    retrieved_at_k = retrieved[:k]
 
-def mean_reciprocal_rank(results, ground_truth):
-    """
-    Args:
-        results: Dict[query_id, List[doc_ids]]
-        ground_truth: Dict[query_id, Set[relevant_doc_ids]]
-    Returns:
-        float - MRR
-    """
-    rr_scores = []
-    for query_id, retrieved in results.items():
-        relevant = ground_truth[query_id]
-        rr_scores.append(reciprocal_rank(retrieved, relevant))
-    return sum(rr_scores) / len(rr_scores)
+    # Wie viele der Top-K sind relevant?
+    relevant_retrieved = set(retrieved_at_k) & relevant  # Intersection
 
-# Beispiel
-retrieved = [8, 5, 1, 3, 2]
-relevant = {1, 2, 3}
-print(reciprocal_rank(retrieved, relevant))  # 1/3 = 0.333 (3. Position)
+    # Precision = relevante / alle zurückgegebenen
+    return len(relevant_retrieved) / k if k > 0 else 0.0
 
-retrieved = [1, 5, 3, 8, 2]
-print(reciprocal_rank(retrieved, relevant))  # 1/1 = 1.0 (1. Position!)
+
+# Test
+query = "python async"
+retrieved = retrieval_results[query]
+relevant = ground_truth[query]
+
+print(f"Precision@5: {precision_at_k(retrieved, relevant, 5):.2%}")
+print(f"Precision@10: {precision_at_k(retrieved, relevant, 10):.2%}")
 ```
 
-**Interpretation:**
-- `MRR = 1.0`: Erstes Ergebnis ist immer relevant (perfekt!)
-- `MRR = 0.5`: Durchschnittlich auf Position 2
-- `MRR = 0.33`: Durchschnittlich auf Position 3
-- `MRR = 0.1`: Durchschnittlich auf Position 10 (schlecht)
-
-**Wann nutzen?**
-- ✅ **Wichtigste Metrik** wenn nur Top-1 zählt
-- ✅ User klickt meist nur erstes Ergebnis
-- ✅ LLM nutzt hauptsächlich ersten Chunk
-- ✅ Single-Fact Retrieval (eine Antwort gesucht)
-
-**Target:**
-- MRR > 0.8 (erstes relevantes Doc meist in Top-2)
-- MRR > 0.9 (meist auf Position 1)
-
----
-
-## Mean Average Precision (MAP)
-
-**Definition:** Durchschnitt der Precision-Werte an jeder Position eines relevanten Docs
-
-**Formel:**
+**Erwartete Ausgabe:**
 ```
-AP = (Σ Precision@k * rel(k)) / num_relevant
-MAP = average(AP) über alle Queries
+Precision@5: 60.00%  # 3 von 5 relevant (IDs: 1, 4, 6)
+Precision@10: 40.00%  # 4 von 10 relevant (wird schlechter mit mehr K)
 ```
 
-**Code:**
+### 2. Recall@K Implementation
+
 ```python
-# python
-def average_precision(retrieved, relevant):
+def recall_at_k(retrieved: List[int], relevant: Set[int], k: int) -> float:
     """
+    Berechnet Recall@K
+
     Args:
-        retrieved: List[int] - Retrieved docs (ranked)
-        relevant: Set[int] - Relevant docs
+        retrieved: Liste von Doc IDs in Ranking-Reihenfolge
+        relevant: Set von relevanten Doc IDs (Ground Truth)
+        k: Anzahl Top-Docs zu evaluieren
+
     Returns:
-        float - Average Precision
+        Recall@K (0.0 bis 1.0)
     """
     if len(relevant) == 0:
         return 0.0
 
-    precision_sum = 0.0
-    num_relevant_found = 0
+    # Nur Top-K betrachten
+    retrieved_at_k = retrieved[:k]
 
-    for i, doc_id in enumerate(retrieved, start=1):
-        if doc_id in relevant:
-            num_relevant_found += 1
-            precision_at_i = num_relevant_found / i
-            precision_sum += precision_at_i
+    # Wie viele der relevanten Docs wurden gefunden?
+    relevant_retrieved = set(retrieved_at_k) & relevant
 
-    return precision_sum / len(relevant)
+    # Recall = gefunden / alle relevanten
+    return len(relevant_retrieved) / len(relevant)
 
-def mean_average_precision(results, ground_truth):
-    ap_scores = []
-    for query_id, retrieved in results.items():
-        relevant = ground_truth[query_id]
-        ap_scores.append(average_precision(retrieved, relevant))
-    return sum(ap_scores) / len(ap_scores)
 
-# Beispiel
-retrieved = [1, 5, 3, 8, 2, 9]
-relevant = {1, 3, 2}
-# Position 1: relevant (Prec = 1/1 = 1.0)
-# Position 3: relevant (Prec = 2/3 = 0.67)
-# Position 5: relevant (Prec = 3/5 = 0.6)
-# AP = (1.0 + 0.67 + 0.6) / 3 = 0.756
-print(average_precision(retrieved, relevant))  # 0.756
+# Test
+print(f"Recall@5: {recall_at_k(retrieved, relevant, 5):.2%}")
+print(f"Recall@10: {recall_at_k(retrieved, relevant, 10):.2%}")
+print(f"Ground Truth: {len(relevant)} relevante Docs total")
 ```
 
-**Wann nutzen?**
-- ✅ Berücksichtigt Reihenfolge UND Anzahl
-- ✅ Standard in Information Retrieval Research
-- ✅ Vergleich verschiedener Retrieval-Systeme
-
----
-
-## Normalized Discounted Cumulative Gain (NDCG)
-
-**Definition:** Berücksichtigt Ranking-Qualität UND abgestufte Relevanz (0, 1, 2, 3)
-
-**Formel:**
+**Erwartete Ausgabe:**
 ```
-DCG@K = Σ (2^rel_i - 1) / log2(i + 1)
-NDCG@K = DCG@K / IDCG@K (ideal DCG)
-Range: [0, 1], höher = besser
+Recall@5: 60.00%   # 3 von 5 relevanten gefunden
+Recall@10: 80.00%  # 4 von 5 relevanten gefunden (steigt mit K)
+Ground Truth: 5 relevante Docs total
 ```
 
-**Code:**
+### 3. Mean Reciprocal Rank (MRR) Implementation
+
 ```python
-# numpy
-import numpy as np
-
-def dcg_at_k(relevances, k):
+def reciprocal_rank(retrieved: List[int], relevant: Set[int]) -> float:
     """
+    Berechnet Reciprocal Rank für eine Query
+    (Position des ersten relevanten Dokuments)
+
     Args:
-        relevances: List[int] - Relevance scores (0-3) for each position
-        k: int - Cutoff
+        retrieved: Liste von Doc IDs in Ranking-Reihenfolge
+        relevant: Set von relevanten Doc IDs
+
     Returns:
-        float - DCG score
+        Reciprocal Rank (0.0 bis 1.0), oder 0.0 wenn kein relevantes Doc gefunden
     """
-    relevances = np.array(relevances[:k])
-    if relevances.size == 0:
-        return 0.0
+    for rank, doc_id in enumerate(retrieved, start=1):
+        if doc_id in relevant:
+            return 1.0 / rank
+    return 0.0  # Kein relevantes Doc gefunden
 
-    # Positions start at 1
-    positions = np.arange(1, len(relevances) + 1)
 
-    # DCG formula: (2^rel - 1) / log2(position + 1)
-    return np.sum((2**relevances - 1) / np.log2(positions + 1))
-
-def ndcg_at_k(retrieved_relevances, ideal_relevances, k):
+def mean_reciprocal_rank(
+    results: Dict[str, List[int]],
+    ground_truth: Dict[str, Set[int]]
+) -> float:
     """
+    Berechnet MRR über mehrere Queries
+
     Args:
-        retrieved_relevances: List[int] - Relevance scores in retrieved order
-        ideal_relevances: List[int] - Relevance scores in ideal order (sorted desc)
-        k: int - Cutoff
+        results: Dict[query -> Liste von retrieved Doc IDs]
+        ground_truth: Dict[query -> Set von relevanten Doc IDs]
+
     Returns:
-        float - NDCG score
+        Mean Reciprocal Rank (0.0 bis 1.0)
     """
-    dcg = dcg_at_k(retrieved_relevances, k)
-    idcg = dcg_at_k(sorted(ideal_relevances, reverse=True), k)
+    rr_scores = []
 
-    if idcg == 0:
-        return 0.0
+    for query in results:
+        if query not in ground_truth:
+            continue
 
-    return dcg / idcg
+        rr = reciprocal_rank(results[query], ground_truth[query])
+        rr_scores.append(rr)
 
-# Beispiel
-# Query: "Energieverbrauch HMFvh 4001?"
-# Retrieved docs mit Relevanz-Scores:
-retrieved = [3, 0, 2, 1, 0]  # 3=perfect, 2=good, 1=ok, 0=irrelevant
-ideal = [3, 2, 1, 0, 0]      # Optimal sortiert
+        # Debug: Position des ersten relevanten Docs
+        first_pos = int(1/rr) if rr > 0 else "N/A"
+        print(f"Query '{query}': First relevant at position {first_pos} (RR={rr:.3f})")
 
-print(ndcg_at_k(retrieved, ideal, k=5))  # ~0.95 (gut!)
+    return np.mean(rr_scores) if rr_scores else 0.0
 
-# Schlechtes Ranking:
-retrieved_bad = [0, 1, 0, 2, 3]  # Beste Docs ganz hinten
-print(ndcg_at_k(retrieved_bad, ideal, k=5))  # ~0.65 (schlecht)
+
+# Test über alle Queries
+mrr = mean_reciprocal_rank(retrieval_results, ground_truth)
+print(f"\nMean Reciprocal Rank: {mrr:.3f}")
 ```
 
-**Relevanz-Skala:**
-- `3`: Perfekte Antwort (beantwortet Query vollständig)
-- `2`: Sehr relevant (hilfreiche Info, aber unvollständig)
-- `1`: Teilweise relevant (tangential relevant)
-- `0`: Irrelevant
+**Erwartete Ausgabe:**
+```
+Query 'python async': First relevant at position 1 (RR=1.000)
+Query 'docker networking': First relevant at position 1 (RR=1.000)
+Query 'redis caching': First relevant at position 2 (RR=0.500)
+
+Mean Reciprocal Rank: 0.833
+```
+
+**Interpretation:** Im Schnitt ist das erste relevante Doc auf Position ~1.2 (sehr gut!)
+
+### 4. NDCG@K Implementation
+
+```python
+def dcg_at_k(relevances: List[float], k: int) -> float:
+    """
+    Berechnet Discounted Cumulative Gain@K
+
+    Args:
+        relevances: Liste von Relevanz-Scores in Ranking-Reihenfolge
+        k: Anzahl Top-Docs zu evaluieren
+
+    Returns:
+        DCG@K
+    """
+    relevances_at_k = relevances[:k]
+
+    dcg = 0.0
+    for i, rel in enumerate(relevances_at_k, start=1):
+        # Discount-Faktor: 1/log₂(i+1)
+        discount = 1.0 / np.log2(i + 1)
+        dcg += rel * discount
+
+    return dcg
+
+
+def ndcg_at_k(
+    retrieved: List[int],
+    relevance_scores: Dict[int, float],
+    k: int
+) -> float:
+    """
+    Berechnet Normalized Discounted Cumulative Gain@K
+
+    Args:
+        retrieved: Liste von Doc IDs in Ranking-Reihenfolge
+        relevance_scores: Dict[doc_id -> Relevanz-Score]
+        k: Anzahl Top-Docs zu evaluieren
+
+    Returns:
+        NDCG@K (0.0 bis 1.0)
+    """
+    # Relevanz-Scores für retrieved Docs (0 wenn nicht relevant)
+    retrieved_relevances = [
+        relevance_scores.get(doc_id, 0.0)
+        for doc_id in retrieved
+    ]
+
+    # DCG des aktuellen Rankings
+    actual_dcg = dcg_at_k(retrieved_relevances, k)
+
+    # Ideal DCG: Sortiere Relevanz-Scores absteigend
+    ideal_relevances = sorted(relevance_scores.values(), reverse=True)
+    ideal_dcg = dcg_at_k(ideal_relevances, k)
+
+    # Normalisierung (verhindert Division durch 0)
+    return actual_dcg / ideal_dcg if ideal_dcg > 0 else 0.0
+
+
+# Test mit graded relevance
+query = "python async"
+retrieved = retrieval_results[query]
+
+# Graded Relevanz (3=perfekt, 2=gut, 1=okay, 0=irrelevant)
+relevance_scores = {
+    1: 3,   # Perfektes Match
+    4: 2,   # Gutes Match
+    6: 2,   # Gutes Match
+    12: 1,  # Okay Match
+    15: 1   # Okay Match
+}
+
+ndcg_5 = ndcg_at_k(retrieved, relevance_scores, 5)
+ndcg_10 = ndcg_at_k(retrieved, relevance_scores, 10)
+
+print(f"NDCG@5: {ndcg_5:.3f}")
+print(f"NDCG@10: {ndcg_10:.3f}")
+
+# Zeige Ranking vs. Ideal
+print("\nAktual Ranking (Top-5):")
+for i, doc_id in enumerate(retrieved[:5], 1):
+    rel = relevance_scores.get(doc_id, 0)
+    print(f"  {i}. Doc {doc_id}: Relevance={rel}")
+
+print("\nIdeal Ranking:")
+ideal_ranking = sorted(relevance_scores.items(), key=lambda x: x[1], reverse=True)
+for i, (doc_id, rel) in enumerate(ideal_ranking[:5], 1):
+    print(f"  {i}. Doc {doc_id}: Relevance={rel}")
+```
+
+**Erwartete Ausgabe:**
+```
+NDCG@5: 0.874
+NDCG@10: 0.812
+
+Aktual Ranking (Top-5):
+  1. Doc 1: Relevance=3  ✓ Gut!
+  2. Doc 23: Relevance=0  ✗ Schlecht
+  3. Doc 45: Relevance=0  ✗ Schlecht
+  4. Doc 4: Relevance=2  ✓ Okay
+  5. Doc 67: Relevance=0  ✗ Schlecht
+
+Ideal Ranking:
+  1. Doc 1: Relevance=3
+  2. Doc 4: Relevance=2
+  3. Doc 6: Relevance=2
+  4. Doc 12: Relevance=1
+  5. Doc 15: Relevance=1
+```
 
 **Interpretation:**
-- `NDCG@5 = 1.0`: Perfektes Ranking
-- `NDCG@5 = 0.9`: Sehr gutes Ranking (kleine Fehler)
-- `NDCG@5 = 0.7`: Okay (einige relevante Docs zu weit unten)
-- `NDCG@5 = 0.5`: Schlecht (Ranking zufällig)
+- NDCG@5 = 0.874 → 87% der idealen Sortierung
+- Gut, weil Doc 1 (beste) auf Position 1
+- Könnte besser sein: Doc 4, 6 sollten auf Position 2-3 sein (nicht 23, 45)
 
-**Wann nutzen?**
-- ✅ **Gold Standard** für Ranking-Evaluation
-- ✅ Wenn Relevanz abgestuft ist (nicht nur binary)
-- ✅ Position ist wichtig (frühere Docs zählen mehr)
-- ✅ Vergleich verschiedener Ranking-Algorithmen
+## ⏱️ 5-Minuten-Experte
 
-**Target:**
-- NDCG@5 > 0.85
-- NDCG@10 > 0.80
+### 1. Verständnisfrage: Precision vs. Recall Trade-off
 
----
+**Frage:** Du hast Precision@10=30% und Recall@10=90%. Was bedeutet das? Ist das gut oder schlecht?
 
-## Hit Rate@K
+<details><summary>💡 Zeige Antwort</summary>
 
-**Definition:** Prozent der Queries mit mindestens 1 relevantem Doc in Top-K
+**Antwort:**
+- **Precision@10=30%**: Von 10 zurückgegebenen Docs sind nur 3 relevant (viel Müll)
+- **Recall@10=90%**: Von allen relevanten Docs hast du 90% gefunden (hohe Abdeckung)
 
-**Code:**
-```python
-# python
-def hit_rate_at_k(retrieved, relevant, k):
-    """Binary: 1 if any relevant doc in top-k, else 0"""
-    top_k = set(retrieved[:k])
-    return 1.0 if len(top_k & relevant) > 0 else 0.0
+**Interpretation:** Dein System ist "zu großzügig"
+- Findet fast alles Relevante (gut!)
+- Aber gibt auch viel Irrelevantes zurück (schlecht für User Experience)
 
-def mean_hit_rate(results, ground_truth, k):
-    hits = []
-    for query_id, retrieved in results.items():
-        relevant = ground_truth[query_id]
-        hits.append(hit_rate_at_k(retrieved, relevant, k))
-    return sum(hits) / len(hits)
+**Ist das gut oder schlecht?**
+- **Schlecht für:** User-facing Search (User sieht 7 irrelevante von 10 Docs)
+- **Okay für:** First-Stage Retrieval in Two-Stage System (Re-Ranker filtert später)
+- **Gut für:** Legal Discovery (lieber zu viel als zu wenig finden)
+
+**Verbesserung:**
+- Threshold erhöhen (weniger Docs zurückgeben)
+- Trade-off: Precision↑, Recall↓
+</details>
+
+### 2. Anwendungsfrage: Welche Metrik für welchen Use-Case?
+
+**Frage:** Du baust drei Systeme: (A) FAQ-Bot, (B) E-Commerce Search, (C) Academic Paper Search. Welche Metrik ist jeweils am wichtigsten?
+
+<details><summary>💡 Zeige Antwort</summary>
+
+**A) FAQ-Bot:**
+- **Wichtigste Metrik:** MRR (Mean Reciprocal Rank)
+- **Warum:** User braucht EINE gute Antwort schnell
+- **Target:** MRR > 0.8 (erste relevante Antwort meist in Top-2)
+- **Zweitwichtig:** Precision@1 (ist die Top-Antwort korrekt?)
+
+**B) E-Commerce Search:**
+- **Wichtigste Metrik:** NDCG@10
+- **Warum:** User will mehrere Produkte vergleichen, beste sollten oben sein
+- **Target:** NDCG@10 > 0.7
+- **Zweitwichtig:** Recall@10 (genug Auswahl?)
+
+**C) Academic Paper Search:**
+- **Wichtigste Metrik:** Recall@50 + Precision@10
+- **Warum:** Researcher will ALLE relevanten Papers finden (hoher Recall), aber auch gute Top-Results (Precision@10)
+- **Target:** Recall@50 > 0.9, Precision@10 > 0.6
+- **Trade-off:** Niedrigere Precision akzeptabel, wenn Recall hoch
+
+**Merksatz:**
+- One answer needed → MRR
+- Multiple quality-graded results → NDCG
+- Comprehensive coverage → Recall + Precision
+</details>
+
+### 3. Trade-off-Frage: NDCG vs. Precision@K
+
+**Frage:** Dein System hat NDCG@10=0.85, aber Precision@10=50%. Ein zweites System hat NDCG@10=0.75 und Precision@10=70%. Welches ist besser?
+
+<details><summary>💡 Zeige Antwort</summary>
+
+**Kommt darauf an:**
+
+**System 1 (NDCG=0.85, P@10=50%):**
+- Hoher NDCG → Gute Sortierung, beste Docs weit oben
+- Niedriger Precision → Viele irrelevante Docs in Top-10
+- **Interpretation:** Perfekte Docs auf Position 1-2, dann viel Müll
+- **Beispiel:** [3, 3, 0, 0, 0, 0, 0, 0, 2, 2] (Relevanz-Scores)
+
+**System 2 (NDCG=0.75, P@10=70%):**
+- Niedriger NDCG → Schlechtere Sortierung
+- Höherer Precision → Weniger irrelevante Docs
+- **Interpretation:** Viele relevante Docs, aber nicht optimal sortiert
+- **Beispiel:** [1, 2, 1, 0, 2, 1, 0, 1, 2, 0] (Relevanz-Scores)
+
+**Wähle System 1 wenn:**
+- User sieht nur Top-3 (dann ist hoher NDCG wichtiger)
+- "Best Match" kritisch (z.B. Product Recommendation)
+
+**Wähle System 2 wenn:**
+- User scrollt durch alle Top-10
+- Wichtiger dass kein Müll dabei ist (z.B. Medical Info)
+
+**Best Practice:** Messe BEIDES und entscheide basierend auf User Behavior
+- Tracke: Welche Position klickt User? → Wenn meist Top-1-3: NDCG wichtiger
+- Tracke: Scrollt User durch alle? → Wenn ja: Precision wichtiger
+</details>
+
+## 📊 Vergleiche & Benchmarks
+
+### Wann nutze ich was?
+
+| Metrik | Use Case | Vorteil | Nachteil | Typisches Target |
+|--------|----------|---------|----------|------------------|
+| **Precision@K** | User-facing Search, K=5 oder 10 | Einfach zu verstehen | Ignoriert Ranking-Qualität | >70% |
+| **Recall@K** | E-Discovery, Medical | Findet alle relevanten Docs | User sieht evtl. viel Müll | >90% |
+| **MRR** | FAQ-Bot, Navigational Search | Fokus auf erste Antwort | Ignoriert restliche Results | >0.8 |
+| **NDCG@K** | E-Commerce, Multi-Result Search | Berücksichtigt Ranking + Grades | Komplexer zu berechnen | >0.7 |
+
+### Decision Tree: Metrik-Auswahl
+
+```
+Brauchst du graded relevance (0-3) oder binary (ja/nein)?
+├─ Binary → Precision@K, Recall@K, MRR
+│   └─ User sieht nur Top-1 Ergebnis?
+│       ├─ JA → MRR (FAQ-Bot)
+│       └─ NEIN → Precision@K + Recall@K
+│           └─ Was ist wichtiger?
+│               ├─ User Experience → Precision@K
+│               └─ Nichts verpassen → Recall@K
+│
+└─ Graded → NDCG@K
+    └─ K = Anzahl Ergebnisse die User sieht
 ```
 
-**Wann nutzen?**
-- ✅ Minimale Anforderung: "Ist überhaupt was relevantes dabei?"
-- ✅ Schnelle Sanity Check
+### Benchmark: Typische Werte verschiedener Systeme
 
-**Target:** Hit Rate@10 > 0.95
+| System-Typ | Precision@5 | Recall@10 | MRR | NDCG@10 |
+|------------|-------------|-----------|-----|---------|
+| **State-of-the-Art (BEIR Benchmark)** | 65-75% | 55-65% | 0.55-0.70 | 0.52-0.62 |
+| **Gutes Production RAG-System** | 60-70% | 70-80% | 0.70-0.85 | 0.65-0.75 |
+| **Okay Production System** | 45-60% | 60-70% | 0.60-0.70 | 0.55-0.65 |
+| **Needs Improvement** | <45% | <60% | <0.60 | <0.55 |
 
----
+**Quelle:** BEIR Benchmark (2021), eigene Production-Erfahrung
 
-## Welche Metrik wann?
+### 🔍 Metrik-Unabhängigkeit verstehen
 
-| Use Case | Empfohlene Metrik | Warum? |
-|----------|------------------|--------|
-| **LLM nutzt Top-1** | MRR | Nur erstes Ergebnis zählt |
-| **LLM nutzt Top-3** | Precision@3, NDCG@3 | Qualität der Top-3 wichtig |
-| **Multiple relevant docs nötig** | Recall@10, MAP | Keine verpassen |
-| **Abgestufte Relevanz** | NDCG@K | Beste comprehensive Metrik |
-| **Quick Sanity Check** | Hit Rate@10 | Ist überhaupt was relevantes dabei? |
-| **A/B Testing** | MRR + NDCG@5 | Kombiniert Ranking + Quality |
+**Wichtig:** Diese Metriken messen nur das **Ergebnis** des Retrievals, nicht die **Methode**!
+
+```
+Retrieval-Pipeline:
+┌─────────────────────────────────────────────────────────────┐
+│ 1. Retrieval-Methode (WIE du suchst)                        │
+│    ├─ Dense Retrieval (Embeddings + Cosine Similarity)     │
+│    ├─ Sparse Retrieval (BM25, TF-IDF)                      │
+│    └─ Hybrid (Kombination)                                 │
+│                                                              │
+│    → Siehe: 04-advanced/retrieval-methods/                 │
+│    → Siehe: 03-core/embeddings/ (für Dense Retrieval)      │
+└─────────────────────────────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────┐
+│ 2. Retrieval-Ergebnis                                       │
+│    Top-K Dokumente: [Doc_1, Doc_5, Doc_3, Doc_8, Doc_2]    │
+└─────────────────────────────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────┐
+│ 3. Evaluation (WAS du misst) ← Du bist HIER                │
+│    Ranking Metrics (dieses Kapitel):                        │
+│    - Precision@K: Wie viele der Top-K sind relevant?       │
+│    - MRR: Wo ist das erste relevante Doc?                  │
+│    - NDCG: Wie gut ist die Reihenfolge?                    │
+│                                                              │
+│    → Unabhängig von Schritt 1!                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Beispiel: Gleiche Metriken, verschiedene Methoden**
+
+```python
+# Beispiel: Du vergleichst zwei Retrieval-Methoden
+
+# Methode A: Dense Retrieval (Sentence-Transformers)
+results_dense = [1, 5, 8, 12, 3]  # Doc IDs
+ground_truth = {1, 3, 8, 15, 20}
+
+precision_dense = precision_at_k(results_dense, ground_truth, 5)
+# → 60% (3 von 5 relevant)
+
+# Methode B: BM25 (Sparse Retrieval)
+results_bm25 = [1, 3, 8, 15, 20]  # Doc IDs
+precision_bm25 = precision_at_k(results_bm25, ground_truth, 5)
+# → 100% (5 von 5 relevant)
+
+# Gleiche Metrik, verschiedene Methoden!
+# Jetzt weißt du: BM25 funktioniert besser für diesen Use-Case
+```
+
+**Was beeinflusst was?**
+
+| Was? | Beeinflusst durch... | Gemessen mit... |
+|------|---------------------|-----------------|
+| **Embedding-Qualität** | Embedding-Model (Sentence-Transformers, OpenAI) | Embedding-Evaluation (03-core/embeddings/) |
+| **Similarity-Metrik** | Embedding-Model (normalisiert? → Cosine vs. Dot Product) | Siehe 02-similarity-measures.md |
+| **Retrieval-Qualität** | Retrieval-Methode (Dense, Sparse, Hybrid) | **Ranking-Metriken (dieses Kapitel)** |
+
+**Merksatz:**
+> "Ranking-Metriken sind wie ein Thermometer - sie messen die Temperatur, egal ob du mit Gas, Strom oder Holz heizt."
+
+## 🚀 Was du jetzt kannst
+
+**Mathematisches Verständnis:**
+- ✓ Du verstehst Precision@K, Recall@K, MRR, NDCG von Intuition bis Formalisierung
+- ✓ Du erkennst Trade-offs zwischen Metriken (Precision vs. Recall)
+- ✓ Du siehst warum NDCG komplexer aber aussagekräftiger ist als Precision@K
+
+**Praktische Fähigkeiten:**
+- ✓ Du implementierst alle Standard-Metriken from scratch
+- ✓ Du wählst die richtige Metrik für deinen Use-Case (FAQ vs. E-Commerce vs. Research)
+- ✓ Du berechnest Metriken für dein Retrieval-System und interpretierst Ergebnisse
+
+**Kritisches Denken:**
+- ✓ Du vermeidest Fehlinterpretationen (hoher Recall ≠ gutes System)
+- ✓ Du erkennst wann eine Metrik täuscht (Precision@K ohne Context)
+- ✓ Du definierst realistische Targets basierend auf Use-Case und Risiko
+
+## 🔗 Weiterführende Themen
+
+**Nächster logischer Schritt:**
+→ [../02-ai-evaluation/04-quality-metrics.md](../02-ai-evaluation/04-quality-metrics.md) - LLM-Antwortqualität bewerten (Faithfulness, Answer Relevance)
+
+**Vertiefung:**
+→ [../03-production/08-advanced-techniques.md](../03-production/08-advanced-techniques.md) - RAGAS Framework, LLM-as-Judge, Hard Negatives Mining
+
+**Praktische Anwendung:**
+→ [../../../06-applications/](../../../06-applications/) - RAG-System Evaluation in Production
+
+**Core-Konzepte:**
+- [../../02-embeddings/03-model-selection.md](../../02-embeddings/03-model-selection.md) - Embedding-Models beeinflussen Retrieval-Metriken
+- [02-similarity-measures.md](02-similarity-measures.md) - Mathematische Grundlagen der Ähnlichkeitsmessung
+
+**Advanced Research:**
+→ [../../../04-advanced/02-retrieval-optimization.md](../../../04-advanced/02-retrieval-optimization.md) - Two-Stage Retrieval, Hybrid Search für bessere Metriken
+
+**Key Papers:**
+1. **BEIR Benchmark** (Thakur et al., 2021) - "BEIR: A Heterogeneous Benchmark for Zero-shot Evaluation of Information Retrieval Models"
+2. **NDCG Original** (Järvelin & Kekäläinen, 2002) - "Cumulated Gain-based Evaluation of IR Techniques"
+3. **MS MARCO** (Nguyen et al., 2016) - Large-scale IR dataset mit MRR als primary metric

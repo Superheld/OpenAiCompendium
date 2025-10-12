@@ -44,6 +44,14 @@ Wie gut findet dein System relevante Dokumente?
 - **Mean Reciprocal Rank (MRR):** Position des ersten relevanten Dokuments
 - **NDCG@K:** Berücksichtigt Relevanz-Grade (nicht nur binary)
 
+### **[04-ground-truth-creation.md](01-data-metrics/04-ground-truth-creation.md)** - Ground Truth für Evaluation erstellen
+Wie bereite ich Test-Daten für systematische Evaluation vor?
+- **Test-Query-Set Design:** Repräsentative Fragen sammeln (30-500 Queries)
+- **Binary vs Graded Relevance:** Wann 0/1, wann 0-3 Scoring?
+- **LLM-assisted Annotation:** Mit AI Vorschläge generieren + manuell reviewen
+- **Quality Checks:** Inter-Annotator Agreement, Coverage-Analyse
+- **Warum wichtig:** Ohne Ground Truth keine objektive Evaluation!
+
 ### **🧠 AI System Evaluation**
 
 ### **[04-quality-metrics.md](02-ai-evaluation/04-quality-metrics.md)** - LLM-Antwort Bewertung
@@ -126,15 +134,25 @@ quality_score = chunk_quality_analysis(chunks)
 # Target: >95/100 für Production-Readiness
 ```
 
-### **Phase 2: Retrieval-Performance (NACH Embedding)**
+### **Phase 2: Ground Truth erstellen (BEVOR Evaluation)**
 ```python
-# Test-Queries + Ground Truth
+# Test-Queries + Relevance-Annotations erstellen
+ground_truth = create_ground_truth(
+    queries=test_queries,  # 30-500 repräsentative Fragen
+    relevance_type="binary"  # oder "graded" für NDCG
+)
+# LLM-assisted + manual review!
+```
+
+### **Phase 3: Retrieval-Performance (NACH Embedding)**
+```python
+# Mit Ground Truth evaluieren
 precision_5 = precision_at_k(results, ground_truth, k=5)
 mrr = mean_reciprocal_rank(results, ground_truth)
 # Target: Precision@5 >80%, MRR >0.7
 ```
 
-### **Phase 3: Generation-Qualität (mit LLM)**
+### **Phase 4: Generation-Qualität (mit LLM)**
 ```python
 # RAGAS oder manuelles Evaluation
 faithfulness = evaluate_faithfulness(answers, contexts)
@@ -142,7 +160,7 @@ answer_relevance = evaluate_answer_relevance(answers, queries)
 # Target: >0.8 für beide Metriken
 ```
 
-### **Phase 4: Production-Monitoring (LIVE System)**
+### **Phase 5: Production-Monitoring (LIVE System)**
 ```python
 # Real-time Metrics
 monitor_latency()  # Target: <2s response time

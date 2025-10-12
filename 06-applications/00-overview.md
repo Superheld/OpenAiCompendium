@@ -1,229 +1,158 @@
-# Praktische Projekte: Alles mal ausprobieren!
+# Application Patterns: State-of-the-Art AI-Systeme
 
 ## 🎯 Ziel
-Kleine, praktische Projekte um alle wichtigen ML-Konzepte aus dem Kompendium hands-on zu erleben. Core Concepts werden direkt in den Projekten vermittelt - keine getrennte Theorie.
+Verstehen und implementieren moderner AI-Systemarchitekturen für praktische Anwendungsfälle. Focus auf **Architektur-Entscheidungen** und **Production-Ready Patterns**, nicht auf Tutorials.
 
-## 📖 Projekt-Philosophie
-- **Core Concepts integriert**: Training, Embeddings, Evaluation, etc. werden praktisch in Projekten gelernt
-- **Drei Schwierigkeitsstufen**: 🟢 Easy → 🟡 Medium → 🔴 Hard
-- **Core Application Patterns**: Fundamentale ML-Anwendungsmuster werden mit praktischen Projekten verknüpft
-- **Hands-on Learning**: Theorie verstehen durch praktisches Ausprobieren
-- **Experimentell**: "Wie funktioniert das eigentlich?" praktisch beantworten
+## 📖 Philosophie
 
-## 📂 Thematische Anwendungsbereiche
+**Decision-Focused Guidance:**
+- Keine "Step-by-Step Tutorials", sondern **Architektur-Entscheidungen** verstehen
+- **Wann** welche Technik? **Warum** diese Architektur? **Welche Trade-offs**?
+- Von theoretischen Konzepten (aus [03-core/](../03-core/)) zu praktischen Systemen
+- Production-Ready Patterns mit ehrlicher Bewertung
 
-### **🧠 01-fundamentals/** - Grundbausteine verstehen
-Die fundamentalen Konzepte die alle AI-Systeme antreiben
+**Was diese Sektion NICHT ist:**
+- Keine Mini-Projekte zum "Lernen" (das ist [01-historical/](../01-historical/))
+- Keine Core Concepts Einführung (das ist [03-core/](../03-core/))
+- Keine Tool-Nutzung für End-User (das ist [07-practical-usage/](../07-practical-usage/))
 
-#### **[01-single-neuron.md](01-fundamentals/01-single-neuron.md)** - Das erste künstliche Neuron
-**Core Concepts:** Training (Gradient Descent), Aktivierungsfunktionen
-- Einzelnes Neuron von Grund auf implementieren
-- Logische Operationen (AND, OR, XOR) lernen
-- Verstehen warum XOR das Perceptron "gebrochen" hat
+**Was diese Sektion IST:**
+- Referenz-Architekturen für moderne AI-Systeme
+- Entscheidungshilfe: Welche Architektur für welchen Use Case?
+- Vergleich verschiedener Ansätze mit quantitativen Daten
+- Production Considerations (Scaling, Monitoring, Costs)
 
-#### **[02-embedding-basics.md](01-fundamentals/02-embedding-basics.md)** - Vektorräume verstehen
-**Core Concepts:** Embeddings, Similarity Measures
-- Word2Vec vs BERT embeddings vergleichen
-- Cosine Similarity implementieren
-- t-SNE Visualisierung
+## 📂 Application Patterns in diesem Abschnitt
 
-#### **[03-decision-tree.md](01-fundamentals/03-decision-tree.md)** - Interpretable ML
-**Core Concepts:** Model Interpretability, Feature Importance
-- Decision Tree von Grund auf bauen
-- Feature Importance verstehen
-- Random Forest ensemble testen
+### **[01-rag-systems.md](01-rag-systems.md)** - Retrieval-Augmented Generation
+**Use Case:** Knowledge-basierte AI-Systeme (Chatbots, Q&A, Documentation Search)
 
-#### **[04-training-loop.md](01-fundamentals/04-training-loop.md)** - Training Loop von Grund auf
-**Core Concepts:** Training (Backpropagation), Optimization
-- Forward Pass → Loss → Backward Pass → Update implementieren
-- Verstehen wie neuronale Netze wirklich lernen
-- Optimizer-Wahl: Adam vs SGD in der Praxis
+**Architektur-Entscheidungen:**
+- Dense vs. Sparse vs. Hybrid Retrieval
+- Chunking-Strategien und ihre Auswirkungen
+- Re-Ranking: Wann lohnt sich Cross-Encoder?
+- Generation Patterns: Naive RAG → Advanced RAG → Agentic RAG
 
-### **🔍 02-content-understanding/** - Inhalte verstehen & kategorisieren
-AI die Texte, Bilder und Inhalte analysiert und einordnet
+**Technische Tiefe:**
+- Quantitative Vergleiche (Latency, Recall, Costs)
+- Production Considerations (Caching, Streaming)
+- Evaluation: Was ist "gute" RAG Performance?
 
-#### **[02-spam-filter.md](02-content-understanding/02-spam-filter.md)** - Klassisches ML in Aktion
-**Core Concepts:** Feature Engineering, Evaluation Metrics
-- Naive Bayes Spam-Filter implementieren
-- TF-IDF Features verstehen
-- Precision, Recall, F1-Score berechnen
+**Deep-Dive zu Core:**
+- [03-core/02-embeddings/](../03-core/02-embeddings/) für Embedding-Architektur
+- [03-core/03-evaluation/](../03-core/03-evaluation/) für RAG Evaluation
+- [04-advanced/01-retrieval-methods.md](../04-advanced/01-retrieval-methods.md) für Advanced Retrieval
 
-#### **[03-cnn-image-classification.md](02-content-understanding/03-cnn-image-classification.md)** - Computer Vision
-**Core Concepts:** Computer Vision, Transfer Learning
-- CNN für CIFAR-10 implementieren
-- Filter-Visualisierung
-- Transfer Learning ausprobieren
+---
 
-#### **[04-transformer-attention.md](02-content-understanding/04-transformer-attention.md)** - Language Understanding
-**Core Concepts:** Attention, Transformer Architecture
-- Self-Attention von Grund auf implementieren
-- Attention-Weights visualisieren
-- Multi-Head Attention verstehen
+### **[02-search-systems.md](02-search-systems.md)** - Information Retrieval
+**Use Case:** Dokumentensuche, E-Commerce Search, Enterprise Knowledge Search
 
-#### **[01-classification-systems.md](02-content-understanding/01-classification-systems.md)** - Content Classification ⭐
-**Referenz-Implementation:** Automatische Kategorisierung von Inhalten
-- Text Classification mit modernen Transformers
-- Multi-Label und Hierarchical Classification
-- Domain-specific Classification (Legal, Medical, etc.)
+**Architektur-Entscheidungen:**
+- Classical (BM25) vs. Neural (Dense) vs. Hybrid
+- Query Understanding: Rewriting, Expansion, Classification
+- Result Ranking: Two-Stage (Retrieve → Re-Rank)
+- Personalization vs. Generic Ranking
 
-### **🎨 03-content-generation/** - Content erstellen
-AI die neue Inhalte generiert: Text, Code, Bilder
+**Technische Tiefe:**
+- NDCG, MRR, Recall@K benchmarks
+- User Intent Detection
+- Production Trade-offs (Latency vs. Quality)
 
-#### **[01-llm-fine-tuning.md](03-content-generation/01-llm-fine-tuning.md)** - LLM anpassen
-**Core Concepts:** Fine-Tuning, PEFT Methods
-- LoRA Fine-Tuning ausprobieren
-- Before/After Vergleich
-- Custom Dataset erstellen
+**Deep-Dive zu Core:**
+- [03-core/02-embeddings/03-model-selection.md](../03-core/02-embeddings/03-model-selection.md) für Model Choice
+- [03-core/03-evaluation/01-data-metrics/03-ranking-metrics.md](../03-core/03-evaluation/01-data-metrics/03-ranking-metrics.md) für Ranking Evaluation
 
-#### **[Text-to-Image Generation]** - KI-Kunst erstellen (geplant)
-#### **[Code Generation & Completion]** - AI-gestützte Programmierung (geplant)
-#### **[Creative Writing Assistant]** - AI für Content Creation (geplant)
+---
 
-### **🎯 04-personalization/** - Personalisierte Empfehlungen & Suche
-AI die individuelle Bedürfnisse versteht und relevante Inhalte findet
+### **[03-classification-systems.md](03-classification-systems.md)** - Content Classification
+**Use Case:** Text Classification, Document Categorization, Content Moderation
 
-#### **[03-basic-rag.md](04-personalization/03-basic-rag.md)** - Knowledge-basierte AI
-**Core Concepts:** Embeddings, Vector Search, Generation, RAG Pipeline
-- Embedding-basierte Dokumentensuche
-- Chunking-Strategien vergleichen
-- LLM für Antwort-Generation
+**Architektur-Entscheidungen:**
+- Traditional ML (Naive Bayes, SVM) vs. Modern Transformers
+- Fine-Tuning vs. Zero-Shot vs. Few-Shot
+- Single-Label vs. Multi-Label vs. Hierarchical
+- Domain-Specific Models (Legal, Medical, Technical)
 
-#### **[01-rag-systems.md](04-personalization/01-rag-systems.md)** - Retrieval-Augmented Generation ⭐
-**Referenz-Implementation:** Knowledge-basierte AI-Systeme
-- Dense vs. Sparse Embedding-Strategien
-- Advanced RAG Patterns und Optimization
-- Production-ready RAG Architecture
+**Technische Tiefe:**
+- Precision/Recall Trade-offs pro Use Case
+- Class Imbalance Handling
+- Calibration und Confidence Scores
 
-#### **[02-search-systems.md](04-personalization/02-search-systems.md)** - Information Retrieval ⭐
-**Referenz-Implementation:** Semantische und hybride Suchsysteme
-- Classical vs. Neural Search
-- Hybrid Dense+Sparse Retrieval
-- Query Understanding und Result Ranking
+**Deep-Dive zu Core:**
+- [03-core/01-training/](../03-core/01-training/) für Fine-Tuning Strategies
+- [03-core/03-evaluation/02-ai-evaluation/04-quality-metrics.md](../03-core/03-evaluation/02-ai-evaluation/04-quality-metrics.md) für Classification Metrics
 
-#### **[Recommendation Systems]** - Personalisierte Empfehlungen (geplant)
-#### **[Adaptive User Interfaces]** - UI die sich anpasst (geplant)
+---
 
-### **🤖 05-automation/** - Autonome Systeme & Agents
-AI die selbstständig handelt und komplexe Aufgaben übernimmt
+### **[04-model-selection.md](04-model-selection.md)** - Model Selection & Evaluation
+**Use Case:** Das richtige Model für deinen Use Case finden
 
-#### **[01-agentic-ai-system.md](05-automation/01-agentic-ai-system.md)** - Autonome AI-Agenten
-**Core Concepts:** Agentic AI, Planning, Tool Use
-- Multi-step reasoning implementieren
-- Tool-calling und API-Integration
-- Agent-Memory und Kontext-Management
+**Architektur-Entscheidungen:**
+- Benchmark-Driven Selection (MMLU, HumanEval, MTEB)
+- Performance vs. Cost vs. Latency Trade-offs
+- Closed-Source (GPT-4, Claude) vs. Open-Source (Llama, Mistral)
+- When to Fine-Tune vs. Prompt Engineer vs. RAG
 
-#### **[02-multimodal-system.md](05-automation/02-multimodal-system.md)** - Vision + Language
-**Core Concepts:** Multimodal AI, Cross-Modal Learning
-- Image + Text Embeddings kombinieren
-- CLIP-style Model implementieren
-- Visual Question Answering
+**Technische Tiefe:**
+- Quantitative Model Comparisons
+- A/B Testing Methodologies
+- Total Cost of Ownership (Inference + Training)
 
-#### **[Workflow Automation]** - AI für Business Prozesse (geplant)
-#### **[API-calling Agents]** - AI die Services nutzt (geplant)
+**Deep-Dive zu Core:**
+- [03-core/02-embeddings/03-model-selection.md](../03-core/02-embeddings/03-model-selection.md) für Embedding Models
+- [03-core/03-evaluation/](../03-core/03-evaluation/) für Evaluation Frameworks
+- [02-modern-ai/01-llms/01-model-families.md](../02-modern-ai/01-llms/01-model-families.md) für LLM Overview
 
-### **⚖️ 06-safety-ethics/** - Verantwortliche AI
-AI-Sicherheit, Fairness und ethische Aspekte
+---
 
-#### **[01-bias-detection.md](06-safety-ethics/01-bias-detection.md)** - AI Ethics praktisch
-**Core Concepts:** Ethics, Fairness Metrics
-- Gender/Racial Bias in Word Embeddings finden
-- Fairness-Metriken implementieren
-- Debiasing-Techniken testen
+## 🎯 Wie man diese Patterns nutzt
 
-#### **[02-hallucination-detection.md](06-safety-ethics/02-hallucination-detection.md)** - LLM-Probleme verstehen
-**Core Concepts:** Evaluation, Quality Assessment
-- Hallucinations provozieren und erkennen
-- Consistency-Checking implementieren
-- Fact-Verification testen
+**Für jedes Pattern:**
 
-#### **[Adversarial Robustness]** - AI gegen Angriffe (geplant)
-#### **[Privacy-Preserving ML]** - Datenschutz-konforme AI (geplant)
+1. **📋 Use Case Match**: Passt das Pattern zu deinem Problem?
+2. **🤔 Entscheidungen durchgehen**: Welche Architektur-Variante für deine Requirements?
+3. **📊 Vergleiche prüfen**: Quantitative Daten für deine Constraints (Latency, Cost, Quality)
+4. **🔗 Deep-Dive bei Bedarf**: Links zu Core-Konzepten für tieferes Verständnis
+5. **🏗️ Production Considerations**: Scaling, Monitoring, Maintenance
 
-### **🏗️ 07-infrastructure/** - Production & Scaling
-AI-Systeme in Production betreiben und skalieren
+**Typischer Workflow:**
+```
+Problem definieren → Pattern auswählen → Entscheidungen treffen →
+Core-Konzepte vertiefen → Prototyp bauen → Evaluieren → Production
+```
 
-#### **[02-vector-database.md](07-infrastructure/02-vector-database.md)** - Similarity Search at Scale
-**Core Concepts:** Infrastructure, Vector Indexing
-- ChromaDB vs Qdrant vergleichen
-- HNSW Index-Performance testen
-- Million+ Embeddings indexieren
+## 🎓 Lernpfade
 
-#### **[03-distributed-training.md](07-infrastructure/03-distributed-training.md)** - Scaling ML
-**Core Concepts:** Distributed Training, Optimization
-- Multi-GPU Training setup
-- Data vs Model Parallelism
-- Performance-Benchmarks
+### **🎯 Nach Use Case:**
+- **Knowledge Systems**: 01-rag-systems → 02-search-systems → 04-model-selection
+- **Content Understanding**: 03-classification-systems → 04-model-selection
+- **Information Retrieval**: 02-search-systems → 01-rag-systems
 
-#### **[04-production-monitoring.md](07-infrastructure/04-production-monitoring.md)** - ML in Production
-**Core Concepts:** Infrastructure, Monitoring, MLOps
-- Model Drift Detection
-- Performance Monitoring Setup
-- A/B Testing implementieren
-
-#### **[01-model-selection.md](07-infrastructure/01-model-selection.md)** - Model Selection & Evaluation ⭐
-**Referenz-Implementation:** Das richtige Model für den Use Case finden
-- Benchmark-driven Model Selection
-- Performance vs. Cost Trade-offs
-- A/B Testing von ML Models
-
-## 🛠️ Technische Setup-Empfehlungen
-
-### **🟢 Easy Projekte (01-05):**
-- Python + Jupyter Notebooks
-- NumPy, Pandas, Matplotlib
-- Scikit-learn für Vergleiche
-
-### **🟡 Medium Projekte (06-11):**
-- PyTorch oder TensorFlow
-- Hugging Face Transformers
-- Weights & Biases für Logging
-
-### **🔴 Hard Projekte (12-16):**
-- Docker für Containerization
-- Git LFS für große Modelle
-- Cloud Credits (AWS/GCP) für Scaling
-
-## 🎓 Lern-Ansatz
-
-**Für jedes Projekt:**
-
-1. **📚 Theorie zuerst**: Lies das entsprechende Kompendium-Kapitel
-2. **🔬 Minimal-Implementation**: Baue die einfachste Version
-3. **🔍 Experimentieren**: "Was passiert wenn...?" - verschiedene Parameter testen
-4. **📝 Dokumentieren**: Was hast du gelernt? Was war überraschend?
-5. **🔗 Verbindungen**: Wie hängt es mit anderen Projekten zusammen?
-
-**Ziel:** Nicht perfekte Systeme bauen, sondern **verstehen wie alles funktioniert** und dabei alle Core Concepts praktisch lernen!
-
-## 🎯 Lernpfade
-
-### **🎯 Systematischer Aufbau:**
-🟢 Easy: 01 → 03 → 02 → 04 → 05
-🟡 Medium: 06 → 08 → 09 → 10 → 11
-🔴 Hard: 12 → 14 → 15 → 16 → 13
-
-### **🎲 Nach Interesse:**
-- **Historical ML Fan:** 01 → 02 → 04 → 06 → 08
-- **Modern AI Focus:** 05 → 09 → 12 → 16
-- **Ethics & Safety:** 10 → 11 → 15
-- **Infrastructure Nerd:** 13 → 14 → 15
-- **Experimentierfreudig:** Einfach das nehmen was gerade interessant aussieht! 😊
+### **🎯 Nach Komplexität:**
+- **Einstieg**: 03-classification-systems (simplest) → 02-search-systems → 01-rag-systems
+- **Advanced**: 04-model-selection → 01-rag-systems (agentic patterns)
 
 ## 🚀 Was du danach kannst
-- Du hast alle wichtigen ML-Konzepte hands-on implementiert
-- Du verstehst Core Application Patterns (RAG, Search, Classification)
-- Du kannst AI-Projekte von der Idee bis zur Production entwickeln
-- Du hast praktische Erfahrung mit verschiedenen Schwierigkeitsstufen
 
-### **🎖️ Core Concepts Praktisch Beherrscht:**
-- **Training:** 01, 06, 09, 13
-- **Embeddings:** 03, 05, 14, 16
-- **Evaluation:** 02, 10, 11, 15
-- **Ethics:** 10, 11, 12
-- **Infrastructure:** 13, 14, 15
+**Architektur-Kompetenz:**
+- Du kannst das richtige Pattern für deinen Use Case wählen
+- Du verstehst Trade-offs (Latency vs Quality vs Cost)
+- Du kennst Production Considerations für AI-Systeme
+
+**Praktische Fähigkeiten:**
+- Architektur-Entscheidungen mit quantitativen Daten begründen
+- Verschiedene Ansätze vergleichen und bewerten
+- Von Konzept zu Production-Ready System
+
+**Strategisches Verständnis:**
+- Wann lohnt sich welche Komplexität?
+- Wie evaluiert man AI-Systeme objektiv?
+- Was sind realistische Performance-Erwartungen?
 
 ## 🔗 Weiterführende Themen
-- **Theoretische Fundamente**: [../03-core/](../03-core/) für tieferes Verständnis
-- **Research & Innovation**: [../04-advanced/](../04-advanced/) für cutting-edge Techniken
-- **AI im Alltag**: [../07-practical-usage/](../07-practical-usage/) für Tool-Nutzung
-- **Ethics in Practice**: [../05-ethics/](../05-ethics/) für verantwortliche AI-Entwicklung
+
+- **Core Concepts**: [../03-core/](../03-core/) für fundamentale Techniken
+- **Advanced Methods**: [../04-advanced/](../04-advanced/) für cutting-edge Research
+- **Ethics**: [../05-ethics/](../05-ethics/) für Responsible AI
+- **Practical Usage**: [../07-practical-usage/](../07-practical-usage/) für End-User Tools

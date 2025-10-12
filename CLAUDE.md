@@ -2,173 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
----
-
-# 📚 ML Kompendium: Vom Perceptron zum LLM
-
-## Vorwort: Mission und Vision
-
-**Von KI, für Menschen**
-
-Dieses Kompendium wird von einer KI (Large Language Model) für Menschen geschrieben. Es ist ein einzigartiges Projekt mit einer klaren Mission: **Künstliche Intelligenz für Menschen verständlich machen – nicht oberflächlich, sondern mit vollständiger technischer Tiefe.**
-
-### Warum dieses Kompendium?
-
-- **Vollständigkeit**: Nicht "nur ein Überblick", sondern alles – von mathematischen Grundlagen über historische Entwicklung bis zu State-of-the-Art Research
-- **Tiefe statt Breite**: Jedes Thema mit Mathematik, Intuition, Code, Benchmarks und kritischer Bewertung
-- **Ehrliche Bewertung**: Zeigt was AI kann UND was sie NICHT kann
-- **Praktische Relevanz**: Von historischen Algorithmen bis zu modernen Production-Deployments
-- **Deutsche Sprache**: Für deutschsprachige Lernende mit technischem Hintergrund
-
-### Philosophie: Historical Progression
-
-Dieses Kompendium folgt einer **chronologischen Lernreise**:
-- **1950s**: Perceptron – die erste künstliche Neuron
-- **1980s**: Backpropagation – Deep Learning wird möglich
-- **2012**: ImageNet – CNNs revolutionieren Computer Vision
-- **2017**: Transformers – "Attention is All You Need"
-- **2020+**: LLMs – GPT-3, ChatGPT, multimodale Systeme
-
-**Warum chronologisch?** Weil Kontext entscheidend ist. Zu verstehen WARUM eine Technik entwickelt wurde, hilft zu verstehen WIE sie funktioniert und WANN man sie einsetzt.
-
-### Qualitätsstandard: Core-Level Depth
-
-Alle theoretischen Kapitel folgen dem gleichen hohen Standard:
-- ✅ **Problem-First**: Was geht ohne schief?
-- ✅ **Mathematische Tiefe**: Formeln + Intuition + Schritt-für-Schritt Ableitungen
-- ✅ **Hands-On Code**: Lauffähige Beispiele zum Experimentieren
-- ✅ **Misconception Debugging**: Häufige Fehlannahmen explizit korrigiert
-- ✅ **5-Minuten-Expert Tests**: Verstehen validieren
-- ✅ **Quantitative Daten**: Benchmarks, Zahlen, ehrliche Vergleiche
-- ✅ **Trade-off Analysis**: Ehrliche Bewertung von Kompromissen
-
-### Zielgruppe
-
-**Für wen ist das?**
-- **Entwickler** die AI/ML wirklich verstehen wollen (nicht nur nutzen)
-- **Forscher** die fundiertes Grundlagenwissen brauchen
-- **Studenten** die ein umfassendes Nachschlagewerk suchen
-- **Praktiker** die zwischen Theorie und Production navigieren müssen
-- **Entscheider** die AI-Möglichkeiten und -Grenzen realistisch einschätzen wollen
-
-**Voraussetzungen:**
-- Technisches Grundverständnis
-- Bereitschaft für Mathematik (wird aber intuitiv erklärt)
-- Interesse an WARUM, nicht nur WIE
-- Deutsch als Arbeitssprache
-
----
-
-## 📑 Inhaltsverzeichnis & Strukturübersicht
-
-Das Kompendium ist in **7 Hauptsektionen** organisiert, die von historischen Grundlagen zu praktischen Anwendungen führen:
-
-### 🔬 Theoretische Sektionen (A-Kategorie)
-
-Vollständige technische Tiefe mit Mathematik, Code und kritischer Analyse.
-
-#### **A1. Historical ML & AI** [`01-historical/`](01-historical/)
-*1950s bis 2017: Chronologische Entwicklung von Perceptron zu Transformers*
-
-**Inhalt:**
-- **01-foundations/** (1950s-1980s): Perceptron → MLP → Backpropagation
-- **02-classical-ml/** (1980s-2000s): SVM, Decision Trees, Ensemble Methods
-- **03-deep-learning/** (2012+): ImageNet-Moment, CNNs, RNNs
-- **04-attention-transformers/** (2017): "Attention is All You Need"
-
-**Template-Standard:** Deep Technical Analysis mit historischem Kontext
-**Besonderheit:** Breakthrough-Momente, Benchmarks der damaligen Zeit, historische Papers
-
----
-
-#### **A2. Modern AI & LLMs** [`02-modern-ai/`](02-modern-ai/)
-*2020+ bis heute: GPT-3, ChatGPT, multimodale Systeme*
-
-**Inhalt:**
-- **01-llms/**: GPT-Familie, LLaMA, Mistral, Scaling Laws, Alignment
-- **02-vision/**: Vision Transformers, CLIP, moderne CV-Architekturen
-- **03-multimodal/**: CLIP, LLaVA, GPT-4V, Audio-Visual Understanding
-
-**Template-Standard:** Deep Technical Analysis mit State-of-the-Art Tracking
-**Besonderheit:** Model-Specs, Benchmarks (MMLU, HumanEval), API-Nutzung, Production-Considerations
-
----
-
-#### **A3. Core Fundamentals** [`03-core/`](03-core/)
-*Zeitlose ML-Grundlagen: Training, Embeddings, Evaluation, Optimization*
-
-**Inhalt:**
-- **01-training/**: Training Loops, Optimizers, Regularization, Distributed Training
-- **02-embeddings/**: Vector Spaces, Architectures, Model Selection, Vector DBs (4 chapters)
-- **03-evaluation/**: Metriken, Retrieval-Evaluation, Hallucination-Detection (8 chapters)
-- **04-optimization/**: Quantization, Pruning, Model Compression
-- **05-infrastructure/**: Model Serving, Deployment Patterns
-
-**Template-Standard:** Scaffolded Learning von Intuition zu Formalisierung
-**Besonderheit:** Single Source of Truth für fundamentale Konzepte, maximale didaktische Tiefe
-
----
-
-#### **A4. Advanced Research** [`04-advanced/`](04-advanced/)
-*State-of-the-Art Techniken und experimentelle Ansätze*
-
-**Inhalt:**
-- **Retrieval Methods**: Dense/Sparse/Hybrid, Chunking, Re-Ranking
-- **Prompt Engineering**: Few-Shot, Chain-of-Thought, Constitutional AI
-- **Agentic AI**: Reasoning, Planning, Tool-Use
-- **Interpretability**: Mechanistic Interpretability, Probing
-- **Meta-Learning**: MAML, Few-Shot Learning
-
-**Template-Standard:** Deep Technical Dive mit Reproduction Focus
-**Besonderheit:** Paper-Analyse, Ablation Studies, Hype vs. Reality, Production-Gap Analysis
-
----
-
-#### **A5. Ethics & Responsibility** [`05-ethics/`](05-ethics/)
-*Technische + soziale Analyse ethischer Herausforderungen*
-
-**Inhalt:**
-- **01-bias-fairness/**: Bias-Detection, Fairness-Metriken, Mitigation-Code
-- **02-transparency/**: Explainable AI, LIME, SHAP
-- **03-privacy-security/**: Differential Privacy, Federated Learning, Adversarial Robustness
-- **04-societal-impact/**: Job Displacement, Misinformation, Environmental Cost
-- **05-governance/**: EU AI Act, Compliance, Standards
-
-**Template-Standard:** Deep Technical + Social Analysis
-**Besonderheit:** Mathematical Formalization von Fairness, Detection/Mitigation-Code, Trade-off Analysis
-
----
-
-### 🛠️ Praktische Sektionen (B-Kategorie)
-
-Entscheidungsorientierte Guides und Workflow-Optimierung.
-
-#### **B1. Applications** [`06-applications/`](06-applications/)
-*Praktische Systemarchitekturen: RAG, Search, Classification*
-
-**Inhalt:**
-- **RAG Systems**: Architektur-Entscheidungen, Chunking-Strategien, Evaluation
-- **Search Systems**: Semantic Search, Hybrid Search, Re-Ranking
-- **Classification**: Text Classification, Image Classification
-- **Recommendation**: Collaborative Filtering, Content-Based
-
-**Template-Standard:** Decision-Focused (80% Guidance, 20% Code)
-**Besonderheit:** Entscheidungsbäume, Vergleichstabellen, Deep-Dive Links zu Core-Konzepten
-
----
-
-#### **B2. Practical Usage** [`07-practical-usage/`](07-practical-usage/)
-*AI im Alltag und Beruf für Nicht-Entwickler*
-
-**Inhalt:**
-- **01-ai-tools-landscape/**: ChatGPT, Claude, spezialisierte Tools
-- **02-effective-prompting/**: Prompt-Engineering für Nicht-Techniker
-- **03-workflow-integration/**: AI in tägliche Arbeitsprozesse integrieren
-- **04-business-transformation/**: Enterprise AI-Adoption
-- **05-personal-mastery/**: AI-Literacy entwickeln
-
-**Template-Standard:** Workflow-Focused mit messbarem ROI
-**Besonderheit:** Before/After Workflows, Time-Savings, Step-by-Step Implementation
+> **Note:** For a human-readable overview of this kompendium, see [00-overview.md](00-overview.md)
 
 ---
 
@@ -216,19 +50,21 @@ Practical approaches to responsible AI development:
 - **societal-impact/**: Job displacement, misinformation, environmental impact
 - **governance/**: EU AI Act, regulatory compliance, standards
 
-### **06-applications/** - Practical Projects & Core Patterns 🔧 **Template 2**
-Combines theoretical application patterns with hands-on projects:
-- **Core Application Patterns**: RAG systems, search, classification, recommendation
-- **Difficulty Levels**: 🟢 Easy → 🟡 Medium → 🔴 Hard projects
-- **Integrated Learning**: Core concepts taught through practical implementation
+### **06-applications/** - Application Patterns 🔧 **Template 2**
+State-of-the-Art AI system architectures (flat structure, 4 patterns):
+- **01-rag-systems.md**: RAG architectures (Naive → Advanced → Agentic)
+- **02-search-systems.md**: Information Retrieval (BM25, Dense, Hybrid)
+- **03-classification-systems.md**: Content Classification (Traditional ML vs. Transformers)
+- **04-model-selection.md**: Model Selection & Evaluation (Benchmark-driven)
 
 ### **07-practical-usage/** - AI im Alltag und Beruf 🔧 **Template 2**
-Practical AI application for non-developers:
-- **01-ai-tools-landscape/**: Tool overview, ChatGPT/Claude usage, specialized tools
-- **02-effective-prompting/**: Communication strategies with AI systems
-- **03-workflow-integration/**: AI integration in daily workflows
-- **04-business-transformation/**: Enterprise AI adoption strategies
-- **05-personal-mastery/**: AI literacy and skill development
+Practical AI tool usage for non-developers (flat structure, 6 guides):
+- **01-chatgpt-claude-usage.md**: Conversational AI mastery
+- **02-prompt-engineering.md**: Effective prompting strategies
+- **03-conversation-design.md**: Multi-turn dialogue design
+- **04-research-workflows.md**: Research & information gathering
+- **05-content-creation.md**: Writing & design with AI
+- **06-customer-service.md**: AI in customer service
 
 ## Key Structural Concepts
 
