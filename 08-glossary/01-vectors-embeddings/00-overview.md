@@ -10,6 +10,12 @@ Diese Kategorie definiert **fundamentale Konzepte der Vektorrepräsentation** - 
 
 ## 📋 Begriffe in dieser Kategorie
 
+### **Fundamentals (1 Begriff)**
+0. **[00-tensor.md](00-tensor.md)** - Tensor / Mehrdimensionales Array
+   - **FUNDAMENTAL**: Die Datenstruktur hinter ALLEM Deep Learning
+   - Warum Tensoren? GPU-Beschleunigung + Autograd
+   - Von Skalar über Vektor zur Matrix und höher
+
 ### **Grundlagen (2 Begriffe)**
 1. **[01-embedding.md](01-embedding.md)** - Embedding / Dense Vector / Embedding Vector
    - Was ist ein Embedding?
@@ -48,7 +54,9 @@ Diese Kategorie definiert **fundamentale Konzepte der Vektorrepräsentation** - 
 ## 🔗 Lernpfad: Empfohlene Reihenfolge
 
 ```
-1. Embedding (01) → verstehe was Vektoren sind
+0. Tensor (00) → fundamentale Datenstruktur (STARTS HERE!)
+   ↓
+1. Embedding (01) → Tensoren für Text (Vektor = 1D Tensor)
    ↓
 2. Dot Product (04) → mathematische Grundoperation
    ↓
@@ -65,8 +73,9 @@ Diese Kategorie definiert **fundamentale Konzepte der Vektorrepräsentation** - 
 
 ## 🎓 Was du danach kannst
 
-Nach Durcharbeiten dieser 6 Begriffe kannst du:
+Nach Durcharbeiten dieser 7 Begriffe kannst du:
 
+- ✅ **Verstehen** warum Tensoren die Basis für Deep Learning sind (GPU + Autograd)
 - ✅ **Erklären** warum Embeddings semantische Suche ermöglichen
 - ✅ **Berechnen** Cosine Similarity zwischen zwei Vektoren (von Hand!)
 - ✅ **Entscheiden** wann Dense vs. Sparse Retrieval besser ist
@@ -99,6 +108,7 @@ Nach Durcharbeiten dieser 6 Begriffe kannst du:
 
 | Begriff | Verwendet in | Voraussetzung für |
 |---------|--------------|-------------------|
+| **Tensor** | ALLE DL-Modelle | Embeddings, Weights, Activations |
 | **Embedding** | 19 Dateien | Alle Retrieval-Methoden, RAG |
 | **Cosine Similarity** | 14 Dateien | Dense Retrieval, Re-Ranking |
 | **Vector Normalization** | 8 Dateien | Cosine Similarity Optimierung |
