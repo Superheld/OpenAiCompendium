@@ -167,6 +167,41 @@ Entscheidungsorientierte Guides und Workflow-Optimierung.
 
 ---
 
+### 📚 Glossar: Zentrale Begriffsdefinitionen
+
+#### **Glossary** [`08-glossary/`](08-glossary/)
+*Single Source of Truth für alle technischen Begriffe*
+
+**Warum ein Glossar?**
+Das Kompendium definiert **28 Kernbegriffe zentral** um Redundanz zu vermeiden. Begriffe wie "Quantization" (224 Zeilen in einem Kapitel!), "Token" (18 Dateien), "Chunking" (12 Dateien) werden jetzt an einer Stelle erklärt.
+
+**Inhalt:** 6 Kategorien mit 15 kritischen Begriffen (Stand: 2025-10)
+- **01-vectors-embeddings/**: Tensor, Embedding, Cosine Similarity, Dot Product, Dense/Sparse Retrieval (7 Begriffe)
+- **02-transformers-attention/**: Self-Attention, Context Window (2 Begriffe)
+- **03-quantization-optimization/**: Quantization (Memory-Reduktion FP16→INT4) (1 Begriff)
+- **04-rag-concepts/**: RAG, Chunking (Dokument-Segmentierung) (2 Begriffe)
+- **05-llm-training/**: Token, Fine-Tuning, Hallucination (3 Begriffe)
+- **06-evaluation-metrics/**: Precision@K, NDCG, Faithfulness (geplant)
+
+**Template-Standard:** Problem-First + Code-Beispiele + Trade-off Analysis
+**Besonderheit:**
+- Alias-Index (z.B. "Dense Vector" → siehe "Embedding")
+- Cross-References zwischen Begriffen
+- Jeder Begriff mit "Welches Problem löst es?"
+- Code-Beispiele (copy-paste-ready)
+
+**Warum zentral?**
+- **Konsistenz**: Mathematische Notation standardisiert (cos(θ))
+- **Wartbarkeit**: Update an einer Stelle → überall aktuell
+- **Fokus**: Hauptkapitel können sich auf Konzepte konzentrieren, Details stehen im Glossar
+
+**Beispiel-Impact:**
+- Quantization: 224 Zeilen → Glossar-Referenz
+- Token: 18 Definitionen → 1 zentrale (mit Cost-Formeln)
+- Embedding: 19 Erwähnungen → 1 konsistente Definition
+
+---
+
 ## 🎯 Lernpfade
 
 Das Kompendium unterstützt verschiedene Lernpfade je nach Interesse:
